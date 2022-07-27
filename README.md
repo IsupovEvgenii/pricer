@@ -6,7 +6,7 @@
 
 ### 2. prices are sent to main channel
 
-### 3. main goroutine collects prices from main channel and every tick main goroutine calculates result
+### 3. main goroutine collects prices from main channel and every tick main goroutine calculates median from every exchange source and average of medians
 
 
 

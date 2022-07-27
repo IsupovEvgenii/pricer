@@ -26,7 +26,8 @@ type PriceStreamSubscriber interface {
 
 type Exchanger struct {
 	PriceStreamSubscriber
-	Name string
+	Name   string
+	Weight float64
 }
 
 type FairPricer struct {
@@ -63,8 +64,7 @@ func (fp *FairPricer) Run() {
 	closedExchangersCount := 0
 	tickInterval := time.NewTicker(fp.interval)
 	now := time.Now()
-	sumPrices := 0.0
-	countPrices := 0.0
+	sumPricesByExchanger := make(map[string][]float64)
 	fmt.Println("Timestamp, IndexPrice")
 	for {
 		select {
@@ -79,17 +79,20 @@ func (fp *FairPricer) Run() {
 			}
 		case out := <-outResult:
 			if out.time.After(now) && out.time.Before(now.Add(fp.interval)) {
-				sumPrices += out.price
-				countPrices++
+				sumPricesByExchanger[out.name] = append(sumPricesByExchanger[out.name], out.price)
 			}
 		case <-tickInterval.C:
-			if sumPrices != 0.0 {
-				fmt.Println(now.Add(fp.interval).Unix(), " ", sumPrices/countPrices)
-			} else {
-				fmt.Println(now.Add(fp.interval).Unix(), " ", 0.0)
+			sumMedians := 0.0
+			countMedians := 0.0
+			for _, exchanger := range fp.exchangers {
+				if _, ok := sumPricesByExchanger[exchanger.Name]; ok {
+					sumMedians += sumPricesByExchanger[exchanger.Name][len(sumPricesByExchanger[exchanger.Name])/2] * exchanger.Weight
+					countMedians++
+				}
 			}
-			sumPrices = 0.0
-			countPrices = 0.0
+			fmt.Println(now.Add(fp.interval).Unix(), " ", sumMedians/countMedians)
+
+			sumPricesByExchanger = make(map[string][]float64)
 			now = time.Now()
 		}
 	}
